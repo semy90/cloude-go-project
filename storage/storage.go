@@ -1,20 +1,35 @@
 package storage
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
-var storage map[string]string
+var storage = struct {
+	sync.RWMutex
+	m map[string]string
+}{
+	m: make(map[string]string),
+}
 
 var (
 	ErrorNoSuchKey = errors.New("no such a key")
 )
 
 func Put(key string, value string) error {
-	storage[key] = value
+	const op = "storage.Put"
+	storage.Lock()
+	storage.m[key] = value
+	storage.Unlock()
 	return nil
 }
 
 func Get(key string) (string, error) {
-	value, ok := storage[key]
+	const op = "storage.Get"
+
+	storage.RLock()
+	value, ok := storage.m[key]
+	storage.RUnlock()
 	if !ok {
 		return "", ErrorNoSuchKey
 	}
@@ -22,5 +37,9 @@ func Get(key string) (string, error) {
 }
 
 func Delete(key string) {
-	delete(storage, key)
+	const op = "storage.Delete"
+
+	storage.Lock()
+	delete(storage.m, key)
+	storage.Unlock()
 }
